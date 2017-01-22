@@ -1,0 +1,14 @@
+Installed guvcview following instructions at:
+http://www.thisismyrobot.com/2012/08/getting-logitech-c270-webcam-working-on.html
+
+to get manual control of exposure.  Seeing ~15fps at 320x240
+
+	1. Add UVC support to the image 
+	Download and run rpi-update as described here. This will update your image to include the initially-missing UVC support. Reboot as suggested.
+
+	2. Update your packages 
+	sudo apt-get update
+	sudo apt-get upgrade 
+
+	3. Install the guvcview webcam viewer 
+	sudo apt-get install guvcview
