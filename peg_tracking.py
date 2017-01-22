@@ -2,6 +2,9 @@ import numpy as np
 import cv2
 from collections import deque
 import time
+from networktables import NetworkTable
+
+table = NetworkTable.getTable("PegCenters")
 
 idealRatio = 0.39  # 4/10.25
 ratioTolerance = 0.075
@@ -10,10 +13,10 @@ firstErodeKernel = np.ones((5,5),np.uint8)
 secondDilateKernal = np.ones((50,50),np.uint8)
 thirdErodeKernel = np.ones((50,50),np.uint8)
 
-lower_bound = np.array([85, 0, 50])
+lower_bound = np.array([60, 0, 50])
 upper_bound = np.array([100, 255, 255])
 
-cap = cv2.VideoCapture(1)
+cap = cv2.VideoCapture(0)
 
 _, frame = cap.read()
 
@@ -27,21 +30,18 @@ while (1):
 
     _, frame = cap.read()
 
-    img = frame
+    #img = frame
 
-    raw = frame
-    cv2.imshow('Original', raw)
-    erosion1 = cv2.erode(raw, firstErodeKernel)
-    cv2.imshow('First Erosion', erosion1)
-    dilate = cv2.dilate(erosion1, secondDilateKernal)
-    cv2.imshow('Dilate', dilate)
-    erosion2 = cv2.erode(dilate, thirdErodeKernel)
-    cv2.imshow('Second Erosion', erosion2)
+    #raw = frame
+    #cv2.imshow('Original', raw)
+    #erosion1 = cv2.erode(raw, firstErodeKernel)
+    #cv2.imshow('First Erosion', erosion1)
+    #dilate = cv2.dilate(erosion1, secondDilateKernal)
+    #cv2.imshow('Dilate', dilate)
+    #erosion2 = cv2.erode(dilate, thirdErodeKernel)
+    #cv2.imshow('Second Erosion', erosion2)
 
-    frame = erosion2
-    img = frame
-
-    goalView = np.zeros((frameHeight, frameWidth, 3), np.uint8)
+    #frame = erosion2
 
     ### FINDING AND OUTLINING THE GOAL###
 
@@ -55,12 +55,6 @@ while (1):
 
     if len(contours) > 0:
 
-        # Eliminating anything too small and putting the rest in "goalContours"
-
-        #print contours
-
-        #unified = []
-
         hull = cv2.convexHull(contours[0])
 
         if len(contours) > 1:
@@ -72,33 +66,36 @@ while (1):
                 ratio = insideArea/(outsideArea + 0.01)
                 if ratio >= idealRatio - ratioTolerance and ratio <= idealRatio + ratioTolerance:
                     M = cv2.moments(outline)
-                    cX = int(M["m10"] / M["m00"])
-                    cY = int(M["m01"] / M["m00"])
-                    print str(cX) + " " + str(cY)
-                    cv2.circle(goalView, (cX, cY), 2, (0, 0, 255), 4)
-                    for j in range(0, len(outline)):
-                        cv2.line(img, (outline[j - 1][0][0], outline[j - 1][0][1]), (outline[j][0][0], outline[j][0][1]), (0, 255, 0), 2)
-                        cv2.line(goalView, (outline[j - 1][0][0], outline[j - 1][0][1]), (outline[j][0][0], outline[j][0][1]), (0, 255, 0), 2)
+                    pegCenterX = int(M["m10"] / M["m00"])
+                    pegCenterY = int(M["m01"] / M["m00"])
+                    pegCenterX = float(pegCenterX-frameWidth/2)/(frameWidth/2)
+                    pegCenterY = float(pegCenterY-frameHeight/2)/(frameHeight/2)
+                    print str(pegCenterX) + " " + str(pegCenterY)
+                    table.putNumber('pegCenterX', pegCenterX)
+                    table.putNumber('pegCenterY', pegCenterY)
+                    cv2.drawContours(frame, outline, -1, (0, 255, 0))
+                else:
+                    table.putNumber('pegCenterX', -10)
+                    table.putNumber('pegCenterY', -10)
+            else:
+                table.putNumber('pegCenterX', -10)
+                table.putNumber('pegCenterY', -10)
 
-            #elif len(goalContours) == 3:
-            #    blah
-            #else:
-            #    blah
-
-    cont = cv2.drawContours(frame, contours, -1, (0, 255, 0))
-
-    ###FINDING AND CIRCLING THE CORNERS###
-
-    cv2.imshow('Final Product', img)
-    cv2.imshow('Mask', mask)
-    cv2.imshow('Goal', goalView)
-    #cv2.imshow('Blah', hsv)
+        else:
+            table.putNumber('pegCenterX', -10)
+            table.putNumber('pegCenterY', -10)
+                
 
     end = time.time()
 
     fps = 1/(end-start)
 
     print fps
+
+    table.putNumber('timestamp', start)
+
+    cv2.imshow('Camera', frame)
+    cv2.imshow('Mask', mask)
 
     k = cv2.waitKey(5) & 0xFF
     if k == 27:
