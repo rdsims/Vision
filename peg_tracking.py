@@ -3,6 +3,8 @@ import cv2
 from collections import deque
 import time
 from networktables import NetworkTable
+import subprocess # to run shell commands
+
 
 table = NetworkTable.getTable("PegCenters")
 
@@ -13,7 +15,7 @@ firstErodeKernel = np.ones((5,5),np.uint8)
 secondDilateKernal = np.ones((50,50),np.uint8)
 thirdErodeKernel = np.ones((50,50),np.uint8)
 
-lower_bound = np.array([60, 0, 50])
+lower_bound = np.array([80, 0, 40])
 upper_bound = np.array([100, 255, 255])
 
 cap = cv2.VideoCapture(0)
@@ -24,6 +26,13 @@ frameWidth = int(cap.get(3))
 print frameWidth
 frameHeight = int(cap.get(4))
 print frameHeight
+
+areaArray = []
+
+# set webcam exposure controls
+# for some reason, it doesn't work if we only run it before this script
+# we apparently need to run it within this script
+subprocess.call("./config_webcam.sh", shell=True)
 
 while (1):
     start = time.time()
@@ -44,46 +53,40 @@ while (1):
     #frame = erosion2
 
     ### FINDING AND OUTLINING THE GOAL###
-
+    
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
     mask = cv2.inRange(hsv, lower_bound, upper_bound)
 
     image, contours, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
-    goalContourRow = 0
-
-    if len(contours) > 0:
-
-        hull = cv2.convexHull(contours[0])
-
-        if len(contours) > 1:
-            if len(contours) == 2:
-                goal = np.vstack(contours[i] for i in range(0, 2))
-                insideArea = cv2.contourArea(contours[0]) + cv2.contourArea(contours[1])
-                outline = cv2.convexHull(goal)
-                outsideArea = cv2.contourArea(outline)
-                ratio = insideArea/(outsideArea + 0.01)
-                if ratio >= idealRatio - ratioTolerance and ratio <= idealRatio + ratioTolerance:
-                    M = cv2.moments(outline)
-                    pegCenterX = int(M["m10"] / M["m00"])
-                    pegCenterY = int(M["m01"] / M["m00"])
-                    pegCenterX = float(pegCenterX-frameWidth/2)/(frameWidth/2)
-                    pegCenterY = float(pegCenterY-frameHeight/2)/(frameHeight/2)
-                    print str(pegCenterX) + " " + str(pegCenterY)
-                    table.putNumber('pegCenterX', pegCenterX)
-                    table.putNumber('pegCenterY', pegCenterY)
-                    cv2.drawContours(frame, outline, -1, (0, 255, 0))
-                else:
-                    table.putNumber('pegCenterX', -10)
-                    table.putNumber('pegCenterY', -10)
-            else:
-                table.putNumber('pegCenterX', -10)
-                table.putNumber('pegCenterY', -10)
-
+    if len(contours) > 1:
+        for c in contours:
+            area = cv2.contourArea(c)
+            areaArray.append(area)
+        sorteddata = sorted(zip(areaArray, contours), key=lambda x: x[0], reverse=True)
+        goal = np.vstack(sorteddata[i][1] for i in range(0, 2))
+        insideArea = cv2.contourArea(contours[0]) + cv2.contourArea(contours[1])
+        outline = cv2.convexHull(goal)
+        outsideArea = cv2.contourArea(outline)
+        ratio = insideArea/(outsideArea + 0.01)
+        if ratio >= idealRatio - ratioTolerance and ratio <= idealRatio + ratioTolerance:
+            M = cv2.moments(outline)
+            pegCenterX = int(M["m10"] / M["m00"])
+            pegCenterY = int(M["m01"] / M["m00"])
+            pegCenterX = float(pegCenterX-frameWidth/2)/(frameWidth/2)
+            pegCenterY = float(pegCenterY-frameHeight/2)/(frameHeight/2)
+            print str(pegCenterX) + " " + str(pegCenterY)
+            table.putNumber('pegCenterX', pegCenterX)
+            table.putNumber('pegCenterY', pegCenterY)
+            for j in range(0, len(outline)):
+                cv2.line(frame, (outline[j - 1][0][0], outline[j - 1][0][1]), (outline[j][0][0], outline[j][0][1]), (0, 255, 0), 2)
         else:
             table.putNumber('pegCenterX', -10)
             table.putNumber('pegCenterY', -10)
+    else:
+        table.putNumber('pegCenterX', -10)
+        table.putNumber('pegCenterY', -10)
                 
 
     end = time.time()
