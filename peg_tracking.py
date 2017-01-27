@@ -1,19 +1,29 @@
 import numpy as np
 import cv2
-#from collections import deque
 import time
 from networktables import NetworkTable
 import subprocess # to run shell commands
+import gtk
+import sys
 
 # set global flags
-displayFlag = False
-erodeFlag = False
-displayErodeFlag = False
+displayFlag = 0
+erodeFlag = 0
+
+#try:
+#    gtk_init_check(null, null)
+#except (NameError):
+#    print("Disabling display...")
+#    displayFlag = 0
+#except:
+#    print("Error:", sys.exc_info()[0])
+
 
 # initialize NetworkTable server
-NetworkTable.setServerMode()
+NetworkTable.setIPAddress("10.96.86.2")
+NetworkTable.setClientMode()
 NetworkTable.initialize()
-table = NetworkTable.getTable("Vision")
+table = NetworkTable.getTable("SmartDashboard")
 
 # get image frame size
 cap = cv2.VideoCapture(0)
@@ -30,22 +40,24 @@ subprocess.call("/home/pi/git/Vision/config_webcam.sh", shell=True)
 
 # set image processing constants
 idealRatio = 0.39  # 4/10.25
-ratioTolerance = 0.075
+ratioTolerance = 0.200
 
 firstErodeKernel = np.ones((5,5),np.uint8)
 secondDilateKernal = np.ones((50,50),np.uint8)
 thirdErodeKernel = np.ones((50,50),np.uint8)
 
-lower_bound = np.array([80, 0, 40])
-upper_bound = np.array([100, 255, 255])
+lower_bound = np.array([60,   0, 200])
+upper_bound = np.array([90, 255, 255])
 
 
-while True:
+while (True):
     start = time.time()
 
-    # set some default values for info sent to roboRIO
+    # set some default illegal values for info sent to roboRIO
     targetCenterX = -999
     targetCenterY = -999
+    targetWidth = -999
+    targetHeight = -999
     targetArea = -999
 
     # capture image frame
@@ -62,12 +74,11 @@ while True:
         erosion2 = cv2.erode(dilate, thirdErodeKernel)
         frame = erosion2
 
-        if displayErodeFlag:
+        if displayFlag:
             cv2.imshow('Original', raw)
             cv2.imshow('First Erosion', erosion1)
             cv2.imshow('Dilate', dilate)
             cv2.imshow('Second Erosion', erosion2)
-
 
     # convert RGB image to HSV for filtering
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -92,10 +103,21 @@ while True:
         # goal consists of the 2 largest contours
         goal = np.vstack(sortedData[i][1] for i in range(0, 2))
 
+        # Draw top four contour outlines: 1 and 2: blue, 3 and 4: red
+        #for i in range(0,2):
+        #    if displayFlag:
+        #        for j in range(0, len(sortedData[i][1])):
+        #            cv2.line(frame, (sortedData[i][1][j - 1][0][0], sortedData[i][1][j - 1][0][1]), (sortedData[i][1][j][0][0], sortedData[i][1][j][0][1]), (255, 0, 0), 2)
+        #for i in range(2,4):
+        #    if displayFlag:
+        #        for j in range(0, len(sortedData[i][1])):
+        #            cv2.line(frame, (sortedData[i][1][j - 1][0][0], sortedData[i][1][j - 1][0][1]), (sortedData[i][1][j][0][0], sortedData[i][1][j][0][1]), (0, 0, 255), 2)     
+
         # calculate area of positive and negative space in target
-        insideArea = cv2.contourArea(contours[0]) + cv2.contourArea(contours[1])
+        insideArea = cv2.contourArea(sortedData[0][1]) + cv2.contourArea(sortedData[1][1])
         outline = cv2.convexHull(goal)
         outsideArea = cv2.contourArea(outline)
+        x,y,outsideWidth,outsideHeight = cv2.boundingRect(outline)
 
         # filter once more by ratio of area in target
         ratio = insideArea/(outsideArea + 0.01)
@@ -106,35 +128,47 @@ while True:
             targetCenterY = int(M["m01"] / M["m00"])
             targetCenterX = float(targetCenterX-frameWidth/2)/(frameWidth/2)        # normalize
             targetCenterY = float(targetCenterY-frameHeight/2)/(frameHeight/2)      # normalize
-            targetArea = outsideArea/(frameHeight*frameWidth)                       # normalize
+            targetArea = float(outsideArea)/(frameHeight*frameWidth)                # normalize
+            targetWidth = float(outsideWidth)/frameWidth			    # normalize
+            targetHeight = float(outsideHeight)/frameHeight                         # normalize
 
             # add lines around target display
             if displayFlag:
                 for j in range(0, len(outline)):
                     cv2.line(frame, (outline[j - 1][0][0], outline[j - 1][0][1]), (outline[j][0][0], outline[j][0][1]), (0, 255, 0), 2)
 
-            # print target center to screen
-            print "X: " + str(targetCenterX) + ", Y: " + str(targetCenterY) + ", Area:" + str(targetArea)
+	else:
+            print "Ratio={:5.3f}".format(ratio)+", Limits=({:5.3f}".format(idealRatio-ratioTolerance)+",{:5.3f})".format(idealRatio+ratioTolerance)
+
+
+    if displayFlag:
+        cv2.imshow('Camera', frame)
+        cv2.imshow(  'Mask', mask)
 
     # calculate the frame rate
     end = time.time()
     fps = 1/(end-start)
-    print fps
 
     # send target information to roboRIO
     table.putNumber('timestamp', start)
     table.putNumber('targetCenterX', targetCenterX)
     table.putNumber('targetCenterY', targetCenterY)
+    table.putNumber('targetWidth',   targetWidth)
+    table.putNumber('targetHeight',  targetHeight)
     table.putNumber('targetArea',    targetArea)
     table.putNumber('fps', fps)
 
-    if displayFlag:
-        cv2.imshow('Camera', frame)
-        cv2.imshow('Mask', mask)
+    if targetArea > 0:
+        # print target center to screen
+        print "FPS:{:3.1f}".format(fps) + ", X:{: 5.3f}".format(targetCenterX) + ", Y:{: 5.3f}".format(targetCenterY) + ", W:{:5.3f}".format(targetWidth) + "H:{:5.3f}".format(targetHeight) + ", A:{:5.3f}".format(targetArea)
+    else:
+        print "FPS:{:3.1f}".format(fps) + ", Target not found";
 
-    #k = cv2.waitKey(5) & 0xFF
-    #if k == 27:
-    #    break
 
+
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+cap.release()
 if displayFlag or displayErodeFlag:
     cv2.destroyAllWindows()
