@@ -26,7 +26,7 @@ print frameHeight
 # set webcam exposure controls
 # for some reason, it doesn't work if we only run it before this script
 # we apparently need to run it within this script
-subprocess.call("./config_webcam.sh", shell=True)
+subprocess.call("/home/pi/git/Vision/config_webcam.sh", shell=True)
 
 # set image processing constants
 idealRatio = 0.39  # 4/10.25
@@ -85,18 +85,18 @@ while True:
         for c in contours:
             area = cv2.contourArea(c)
             areaArray.append(area)
-            
+
         # sort contours by area (the true target should be largest, the rest is noise we can ignore
         sortedData = sorted(zip(areaArray, contours), key=lambda x: x[0], reverse=True)
-        
+
         # goal consists of the 2 largest contours
         goal = np.vstack(sortedData[i][1] for i in range(0, 2))
-        
+
         # calculate area of positive and negative space in target
         insideArea = cv2.contourArea(contours[0]) + cv2.contourArea(contours[1])
         outline = cv2.convexHull(goal)
         outsideArea = cv2.contourArea(outline)
-        
+
         # filter once more by ratio of area in target
         ratio = insideArea/(outsideArea + 0.01)
         if (ratio >= idealRatio - ratioTolerance) and (ratio <= idealRatio + ratioTolerance):
@@ -112,7 +112,7 @@ while True:
             if displayFlag:
                 for j in range(0, len(outline)):
                     cv2.line(frame, (outline[j - 1][0][0], outline[j - 1][0][1]), (outline[j][0][0], outline[j][0][1]), (0, 255, 0), 2)
-                    
+
             # print target center to screen
             print "X: " + str(targetCenterX) + ", Y: " + str(targetCenterY) + ", Area:" + str(targetArea)
 
