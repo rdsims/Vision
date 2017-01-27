@@ -5,6 +5,7 @@ import time
 from networktables import NetworkTable
 import subprocess # to run shell commands
 
+displayFlag = False
 
 table = NetworkTable.getTable("PegCenters")
 
@@ -32,7 +33,7 @@ areaArray = []
 # set webcam exposure controls
 # for some reason, it doesn't work if we only run it before this script
 # we apparently need to run it within this script
-subprocess.call("./config_webcam.sh", shell=True)
+subprocess.call("/home/pi/git/Vision/config_webcam.sh", shell=True)
 
 while (1):
     start = time.time()
@@ -79,8 +80,9 @@ while (1):
             print str(pegCenterX) + " " + str(pegCenterY)
             table.putNumber('pegCenterX', pegCenterX)
             table.putNumber('pegCenterY', pegCenterY)
-            for j in range(0, len(outline)):
-                cv2.line(frame, (outline[j - 1][0][0], outline[j - 1][0][1]), (outline[j][0][0], outline[j][0][1]), (0, 255, 0), 2)
+            if displayFlag:
+                for j in range(0, len(outline)):
+                    cv2.line(frame, (outline[j - 1][0][0], outline[j - 1][0][1]), (outline[j][0][0], outline[j][0][1]), (0, 255, 0), 2)
         else:
             table.putNumber('pegCenterX', -10)
             table.putNumber('pegCenterY', -10)
@@ -97,8 +99,9 @@ while (1):
 
     table.putNumber('timestamp', start)
 
-    cv2.imshow('Camera', frame)
-    cv2.imshow('Mask', mask)
+    if displayFlag:
+        cv2.imshow('Camera', frame)
+        cv2.imshow('Mask', mask)
 
     k = cv2.waitKey(5) & 0xFF
     if k == 27:
