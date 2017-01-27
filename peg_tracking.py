@@ -1,13 +1,17 @@
 import numpy as np
 import cv2
-from collections import deque
+#from collections import deque
 import time
 from networktables import NetworkTable
 import subprocess # to run shell commands
 
 displayFlag = False
+erodeFlag = False
+displayErodeFlag = False
 
-table = NetworkTable.getTable("PegCenters")
+NetworkTable.setServerMode()
+NetworkTable.initialize()
+table = NetworkTable.getTable("Vision")
 
 idealRatio = 0.39  # 4/10.25
 ratioTolerance = 0.075
@@ -37,21 +41,25 @@ subprocess.call("/home/pi/git/Vision/config_webcam.sh", shell=True)
 
 while (1):
     start = time.time()
+    table.putNumber('timestamp', start)
 
     _, frame = cap.read()
 
-    #img = frame
+    if erodeFlag:
+        raw = frame
+        img = frame
 
-    #raw = frame
-    #cv2.imshow('Original', raw)
-    #erosion1 = cv2.erode(raw, firstErodeKernel)
-    #cv2.imshow('First Erosion', erosion1)
-    #dilate = cv2.dilate(erosion1, secondDilateKernal)
-    #cv2.imshow('Dilate', dilate)
-    #erosion2 = cv2.erode(dilate, thirdErodeKernel)
-    #cv2.imshow('Second Erosion', erosion2)
+        erosion1 = cv2.erode(raw, firstErodeKernel)
+        dilate = cv2.dilate(erosion1, secondDilateKernal)
+        erosion2 = cv2.erode(dilate, thirdErodeKernel)
+        frame = erosion2
 
-    #frame = erosion2
+        if displayErodeFlag:
+            cv2.imshow('Original', raw)
+            cv2.imshow('First Erosion', erosion1)
+            cv2.imshow('Dilate', dilate)
+            cv2.imshow('Second Erosion', erosion2)
+
 
     ### FINDING AND OUTLINING THE GOAL###
     
@@ -71,7 +79,7 @@ while (1):
         outline = cv2.convexHull(goal)
         outsideArea = cv2.contourArea(outline)
         ratio = insideArea/(outsideArea + 0.01)
-        if ratio >= idealRatio - ratioTolerance and ratio <= idealRatio + ratioTolerance:
+        if (ratio >= idealRatio - ratioTolerance) and (ratio <= idealRatio + ratioTolerance):
             M = cv2.moments(outline)
             pegCenterX = int(M["m10"] / M["m00"])
             pegCenterY = int(M["m01"] / M["m00"])
@@ -84,27 +92,24 @@ while (1):
                 for j in range(0, len(outline)):
                     cv2.line(frame, (outline[j - 1][0][0], outline[j - 1][0][1]), (outline[j][0][0], outline[j][0][1]), (0, 255, 0), 2)
         else:
-            table.putNumber('pegCenterX', -10)
-            table.putNumber('pegCenterY', -10)
+            table.putNumber('pegCenterX', -999)
+            table.putNumber('pegCenterY', -999)
     else:
-        table.putNumber('pegCenterX', -10)
-        table.putNumber('pegCenterY', -10)
-                
+        table.putNumber('pegCenterX', -999)
+        table.putNumber('pegCenterY', -999)
 
     end = time.time()
-
     fps = 1/(end-start)
-
+    table.putNumber('fps', fps)
     print fps
-
-    table.putNumber('timestamp', start)
 
     if displayFlag:
         cv2.imshow('Camera', frame)
         cv2.imshow('Mask', mask)
 
-    k = cv2.waitKey(5) & 0xFF
-    if k == 27:
-        break
+    #k = cv2.waitKey(5) & 0xFF
+    #if k == 27:
+    #    break
 
-cv2.destroyAllWindows()
+if displayFlag or displayErodeFlag:
+    cv2.destroyAllWindows()
