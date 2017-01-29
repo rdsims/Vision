@@ -38,6 +38,9 @@ for fname in images:
 
 ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1], None, None)
 
+np.savetxt('camera_matrix.txt', mtx)
+np.savetxt('distortion_coefs.txt', dist)
+
 for fname in images:
     img = cv2.imread(fname)
     gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)

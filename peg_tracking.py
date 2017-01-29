@@ -18,6 +18,9 @@ erodeFlag = 0
 #except:
 #    print("Error:", sys.exc_info()[0])
 
+cameraMatrix = np.loadtxt("camera_matrix.txt")
+distortionCoefs = np.loadtxt("distortion_coefs.txt")
+
 
 # initialize NetworkTable server
 NetworkTable.setIPAddress("10.96.86.2")
@@ -117,12 +120,13 @@ while (True):
         insideArea = cv2.contourArea(sortedData[0][1]) + cv2.contourArea(sortedData[1][1])
         outline = cv2.convexHull(goal)
         outsideArea = cv2.contourArea(outline)
-        x,y,outsideWidth,outsideHeight = cv2.boundingRect(outline)
 
         # filter once more by ratio of area in target
         ratio = insideArea/(outsideArea + 0.01)
         if (ratio >= idealRatio - ratioTolerance) and (ratio <= idealRatio + ratioTolerance):
-            # we have found the target.  calculate location of center, normalized to the size of the image frame
+            # we have found the target.
+
+            # calculate location of center, normalized to the size of the image frame
             M = cv2.moments(outline)
             targetCenterX = int(M["m10"] / M["m00"])
             targetCenterY = int(M["m01"] / M["m00"])
