@@ -18,8 +18,8 @@ erodeFlag = 0
 #except:
 #    print("Error:", sys.exc_info()[0])
 
-cameraMatrix = np.loadtxt("camera_matrix.txt")
-distortionCoefs = np.loadtxt("distortion_coefs.txt")
+cameraMatrix = np.loadtxt("/home/pi/git/Vision/camera_matrix.txt")
+distortionCoefs = np.loadtxt("/home/pi/git/Vision/distortion_coefs.txt")
 
 
 # initialize NetworkTable server
