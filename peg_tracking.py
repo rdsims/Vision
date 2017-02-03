@@ -155,7 +155,7 @@ while (True):
     fps = 1/(end-start)
 
     # send target information to roboRIO
-    table.putNumber('timestamp', start)
+    table.putNumber('imageTimestamp', start)
     table.putNumber('targetCenterX', targetCenterX)
     table.putNumber('targetCenterY', targetCenterY)
     table.putNumber('targetWidth',   targetWidth)
