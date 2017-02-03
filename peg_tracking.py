@@ -128,6 +128,7 @@ while (True):
 
             # calculate location of center, normalized to the size of the image frame
             M = cv2.moments(outline)
+            x,y,outsideWidth,outsideHeight = cv2.boundingRect(outline)
             targetCenterX = int(M["m10"] / M["m00"])
             targetCenterY = int(M["m01"] / M["m00"])
             targetCenterX = float(targetCenterX-frameWidth/2)/(frameWidth/2)        # normalize
@@ -164,7 +165,7 @@ while (True):
 
     if targetArea > 0:
         # print target center to screen
-        print "FPS:{:3.1f}".format(fps) + ", X:{: 5.3f}".format(targetCenterX) + ", Y:{: 5.3f}".format(targetCenterY) + ", W:{:5.3f}".format(targetWidth) + "H:{:5.3f}".format(targetHeight) + ", A:{:5.3f}".format(targetArea)
+        print "FPS:{:3.1f}".format(fps) + ", X:{: 5.3f}".format(targetCenterX) + ", Y:{: 5.3f}".format(targetCenterY) + ", W:{:5.3f}".format(targetWidth) + ", H:{:5.3f}".format(targetHeight) + ", A:{:5.3f}".format(targetArea)
     else:
         print "FPS:{:3.1f}".format(fps) + ", Target not found";
 
