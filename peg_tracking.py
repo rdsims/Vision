@@ -155,13 +155,13 @@ while (True):
     fps = 1/(end-start)
 
     # send target information to roboRIO
-    table.putNumber('imageTimestamp', start)
-    table.putNumber('targetCenterX', targetCenterX)
-    table.putNumber('targetCenterY', targetCenterY)
-    table.putNumber('targetWidth',   targetWidth)
-    table.putNumber('targetHeight',  targetHeight)
-    table.putNumber('targetArea',    targetArea)
-    table.putNumber('fps', fps)
+    table.putNumber('Camera/imageTimestamp', start)
+    table.putNumber('Camera/targetCenterX', targetCenterX)
+    table.putNumber('Camera/targetCenterY', targetCenterY)
+    table.putNumber('Camera/targetWidth',   targetWidth)
+    table.putNumber('Camera/targetHeight',  targetHeight)
+    table.putNumber('Camera/targetArea',    targetArea)
+    table.putNumber('Camera/fps', fps)
 
     if targetArea > 0:
         # print target center to screen
