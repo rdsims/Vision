@@ -142,8 +142,8 @@ while (True):
                 for j in range(0, len(outline)):
                     cv2.line(frame, (outline[j - 1][0][0], outline[j - 1][0][1]), (outline[j][0][0], outline[j][0][1]), (0, 255, 0), 2)
 
-	else:
-            print "Ratio={:5.3f}".format(ratio)+", Limits=({:5.3f}".format(idealRatio-ratioTolerance)+",{:5.3f})".format(idealRatio+ratioTolerance)
+    else:
+        print "Ratio={:5.3f}".format(ratio)+", Limits=({:5.3f}".format(idealRatio-ratioTolerance)+",{:5.3f})".format(idealRatio+ratioTolerance)
 
 
     if displayFlag:
@@ -175,5 +175,5 @@ while (True):
         break
 
 cap.release()
-if displayFlag or displayErodeFlag:
+if displayFlag:
     cv2.destroyAllWindows()
