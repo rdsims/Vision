@@ -38,13 +38,13 @@ frameHeight = int(cap.get(4))
 print frameHeight
 
 frameSize = [frameWidth, frameHeight]
-FoV = [60, 60/frameWidth*frameHeight]
+FoV = [60.0, 60.0/frameWidth*frameHeight]
 
 # Define a function to convert pixel locations to horizontal and vertical angles
 
 def pixelToAngles(point, frameSize, FoV):
     HAtT = (point[0]+0.5 - frameSize[0]/2) * FoV[0]/frameSize[0]
-    VAtT = (point[1]+0.5 - frameSize[1]/2) * FoV[1]/frameSize[1]
+    VAtT = -(point[1]+0.5 - frameSize[1]/2) * FoV[1]/frameSize[1]
     return [HAtT, VAtT]
 
 # Set webcam exposure controls
@@ -63,7 +63,6 @@ thirdErodeKernel = np.ones((50,50),np.uint8)
 lower_bound = np.array([60,   0, 200])
 upper_bound = np.array([90, 255, 255])
 
-
 while (True):
     start = time.time()
 
@@ -73,6 +72,7 @@ while (True):
     targetWidth = -999
     targetHeight = -999
     targetArea = -999
+    ratio = -999
 
     # Capture image frame
     _, frame = cap.read()
@@ -145,6 +145,9 @@ while (True):
             x,y,outsideWidth,outsideHeight = cv2.boundingRect(outline)
             targetCenterX = int(M["m10"] / M["m00"])
             targetCenterY = int(M["m01"] / M["m00"])
+            if calculateAngles:
+                cX = targetCenterX
+                cY = targetCenterY
             targetCenterX = float(targetCenterX-frameWidth/2)/(frameWidth/2)        # normalize
             targetCenterY = float(targetCenterY-frameHeight/2)/(frameHeight/2)      # normalize
             targetArea = float(outsideArea)/(frameHeight*frameWidth)                # normalize
@@ -154,8 +157,8 @@ while (True):
             # Calculate the horizontal and vertical angles to the target points
             if calculateAngles:
                 for j in range(0, len(outline)):
-                    TLscore[j] = outline[j][0][1] - outline[j][0][0]
-                    TRscore[j] = outline[j][0][1] + outline[j][0][0]
+                    TLscore[j] = -outline[j][0][1] - outline[j][0][0]
+                    TRscore[j] = -outline[j][0][1] + outline[j][0][0]
                 
                 TLindex = np.argmax(TLscore)
                 BRindex = np.argmin(TLscore)
@@ -199,16 +202,25 @@ while (True):
     table.putNumber('Camera/targetHeight',  targetHeight)
     table.putNumber('Camera/targetArea',    targetArea)
     table.putNumber('Camera/fps', fps)
-    if calculateAngles:
-        table.putNumberArray('CR', CRAngles)
-        table.putNumberArray('TL', TLAngles)
-        table.putNumberArray('TR', TRAngles)
-        table.putNumberArray('BL', BLAngles)
-        table.putNumberArray('BR', BRAngles)
+    if calculateAngles and ratio is not -999:
+        table.putNumberArray('TargetAngles/CR', CRAngles)
+        table.putNumberArray('TargetAngles/TL', TLAngles)
+        table.putNumberArray('TargetAngles/TR', TRAngles)
+        table.putNumberArray('TargetAngles/BL', BLAngles)
+        table.putNumberArray('TargetAngles/BR', BRAngles)
 
     if targetArea > 0:
         # Print target center to screen
         print "FPS:{:3.1f}".format(fps) + ", X:{: 5.3f}".format(targetCenterX) + ", Y:{: 5.3f}".format(targetCenterY) + ", W:{:5.3f}".format(targetWidth) + ", H:{:5.3f}".format(targetHeight) + ", A:{:5.3f}".format(targetArea)
+#        print outline
+#        print TLindex
+#        print TRindex
+#        print BLindex
+#        print BRindex
+#        print TL
+#        print TR
+#        print BL
+#        print BR
     else:
         print "FPS:{:3.1f}".format(fps) + ", Target not found";
 
